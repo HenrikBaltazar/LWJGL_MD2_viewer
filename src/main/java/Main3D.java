@@ -113,7 +113,7 @@ public class Main3D {
 	private void loop() {
 		GL.createCapabilities();
 
-		BufferedImage imggato = TextureLoader.loadImage("x-35_obj_b.jpg");
+		BufferedImage imggato = TextureLoader.loadImage("texturaCamoCat.jpg");
 		BufferedImage gatorgba = new BufferedImage(imggato.getWidth(), imggato.getHeight(), BufferedImage.TYPE_INT_ARGB);
 		gatorgba.getGraphics().drawImage(imggato, 0, 0, null);
 		int tgato = TextureLoader.loadTexture(imggato);
@@ -121,7 +121,7 @@ public class Main3D {
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
 		MD2Model x35 = new MD2Model();
-		x35.loadMD2("tris.md2");
+		x35.loadMD2("tris2.md2");
 
 		int currentFrame = 0;
 		float frameTime = 0.2f; // Tempo entre frames (200 ms)
