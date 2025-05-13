@@ -16,6 +16,7 @@ public class MD2Model {
     int currentFrame = 0;
     int nextFrame = 1;
     float interpolacao = 0.0f;
+    public short[][] texCoords;
 
     public void loadMD2(String file) {
         InputStream in;
@@ -50,48 +51,43 @@ public class MD2Model {
             offsetEnd       = Integer.reverseBytes(din.readInt());
 
 
-// Skins (não essenciais para geometria, mas vamos ler)
-            din.skip(offsetSkins - 68); // pula até o offset dos skins
-            byte[][] skins = new byte[numSkins][64]; // cada skin tem 64 bytes
+            din.skip(offsetSkins - 68);
+            byte[][] skins = new byte[numSkins][64];
             for (int i = 0; i < numSkins; i++) {
                 din.readFully(skins[i]);
             }
 
-// Texture coordinates
             din.skip(offsetTexCoords - offsetSkins - (numSkins * 64));
-            short[][] texCoords = new short[numTexCoords][2];
+            texCoords = new short[numTexCoords][2];
             for (int i = 0; i < numTexCoords; i++) {
                 texCoords[i][0] = Short.reverseBytes(din.readShort());
                 texCoords[i][1] = Short.reverseBytes(din.readShort());
             }
 
-// Triangles
             din.skip(offsetTriangles - offsetTexCoords - (numTexCoords * 4));
-            triangles = new short[numTriangles][6]; // 3 vertex indices, 3 texture indices
+            triangles = new short[numTriangles][6];
             for (int i = 0; i < numTriangles; i++) {
                 for (int j = 0; j < 3; j++) {
-                    triangles[i][j] = Short.reverseBytes(din.readShort()); // vertex indices
+                    triangles[i][j] = Short.reverseBytes(din.readShort());
                 }
                 for (int j = 3; j < 6; j++) {
-                    triangles[i][j] = Short.reverseBytes(din.readShort()); // texCoord indices
+                    triangles[i][j] = Short.reverseBytes(din.readShort());
                 }
             }
 
-// GL commands
             din.skip(offsetGlCmds - offsetTriangles - (numTriangles * 12));
             int[] glCommands = new int[numGlCommands];
             for (int i = 0; i < numGlCommands; i++) {
                 glCommands[i] = Integer.reverseBytes(din.readInt());
             }
 
-// Frames
             frames = new MD2Frame[numFrames];
             din.skip(offsetFrames - offsetGlCmds - (numGlCommands * 4));
             for (int i = 0; i < numFrames; i++) {
                 float[] scale = new float[3];
                 float[] translate = new float[3];
                 byte[] name = new byte[16];
-                byte[][] verts = new byte[numVertices][4]; // x, y, z, lightnormalindex
+                byte[][] verts = new byte[numVertices][4];
 
                 for (int j = 0; j < 3; j++) {
                     scale[j] = Float.intBitsToFloat(Integer.reverseBytes(din.readInt()));
@@ -101,7 +97,7 @@ public class MD2Model {
                     translate[j] = Float.intBitsToFloat(Integer.reverseBytes(din.readInt()));
                 }
 
-                din.readFully(name); // nome do frame
+                din.readFully(name);
 
                 for (int j = 0; j < numVertices; j++) {
                     verts[j][0] = din.readByte(); // x
@@ -110,7 +106,6 @@ public class MD2Model {
                     verts[j][3] = din.readByte(); // lightnormalindex
                 }
 
-                System.out.println("Frame " + i + ": " + new String(name).trim());
                 MD2Frame frame = new MD2Frame();
                 frame.scale = scale;
                 frame.translate = translate;
@@ -131,19 +126,15 @@ public class MD2Model {
 
         float[] scale = frames[frameIndex].scale;
         float[] translate = frames[frameIndex].translate;
-        byte[][] verts = frames[frameIndex].vertices; // [numVertices][4]
+        byte[][] verts = frames[frameIndex].vertices;
 
         glBegin(GL_TRIANGLES);
         for (int i = 0; i < triangles.length; i++) {
             for (int j = 0; j < 3; j++) {
                 int vertexIndex = triangles[i][j];
-
-                // Vertex data (compressed)
                 float x = verts[vertexIndex][0] & 0xFF;
                 float y = verts[vertexIndex][1] & 0xFF;
                 float z = verts[vertexIndex][2] & 0xFF;
-
-                // Apply scale and translation
                 x = x * scale[0] + translate[0];
                 y = y * scale[1] + translate[1];
                 z = z * scale[2] + translate[2];
@@ -164,30 +155,36 @@ public class MD2Model {
         }
     }
 
-    public void renderInterpolatedFrame(int currentFrame, int nextFrame, float alpha) {
+    public void Interpolated(int currentFrame, int nextFrame, float alpha) {
+        if (currentFrame >= frames.length || nextFrame >= frames.length) return;
+
         MD2Frame frame1 = frames[currentFrame];
         MD2Frame frame2 = frames[nextFrame];
 
         glBegin(GL_TRIANGLES);
         for (int i = 0; i < triangles.length; i++) {
             for (int j = 0; j < 3; j++) {
-                int idx = triangles[i][j];
+                int vertexIndex = triangles[i][j];
+                int texCoordIndex = triangles[i][j + 3];
 
-                // Descompactar vértices do frame atual
-                float x1 = (frame1.vertices[idx][0] & 0xFF) * frame1.scale[0] + frame1.translate[0];
-                float y1 = (frame1.vertices[idx][1] & 0xFF) * frame1.scale[1] + frame1.translate[1];
-                float z1 = (frame1.vertices[idx][2] & 0xFF) * frame1.scale[2] + frame1.translate[2];
+                if (vertexIndex >= numVertices || texCoordIndex >= numTexCoords) continue;
 
-                // Descompactar vértices do próximo frame
-                float x2 = (frame2.vertices[idx][0] & 0xFF) * frame2.scale[0] + frame2.translate[0];
-                float y2 = (frame2.vertices[idx][1] & 0xFF) * frame2.scale[1] + frame2.translate[1];
-                float z2 = (frame2.vertices[idx][2] & 0xFF) * frame2.scale[2] + frame2.translate[2];
+                float s = (float)(texCoords[texCoordIndex][0] & 0xFFFF) / (float)skinWidth;
+                float t = (float)(texCoords[texCoordIndex][1] & 0xFFFF) / (float)skinHeight;
 
-                // Interpolação
-                float x = x1 + interpolacao * (x2 - x1);
-                float y = y1 + interpolacao * (y2 - y1);
-                float z = z1 + interpolacao * (z2 - z1);
+                float x1 = (frame1.vertices[vertexIndex][0] & 0xFF) * frame1.scale[0] + frame1.translate[0];
+                float y1 = (frame1.vertices[vertexIndex][1] & 0xFF) * frame1.scale[1] + frame1.translate[1];
+                float z1 = (frame1.vertices[vertexIndex][2] & 0xFF) * frame1.scale[2] + frame1.translate[2];
 
+                // Vértices do próximo frame
+                float x2 = (frame2.vertices[vertexIndex][0] & 0xFF) * frame2.scale[0] + frame2.translate[0];
+                float y2 = (frame2.vertices[vertexIndex][1] & 0xFF) * frame2.scale[1] + frame2.translate[1];
+                float z2 = (frame2.vertices[vertexIndex][2] & 0xFF) * frame2.scale[2] + frame2.translate[2];
+                
+                float x = x1 + alpha * (x2 - x1);
+                float y = y1 + alpha * (y2 - y1);
+                float z = z1 + alpha * (z2 - z1);
+                glTexCoord2f(s, t);
                 glVertex3f(x, y, z);
             }
         }

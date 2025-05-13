@@ -23,15 +23,12 @@ import static org.lwjgl.system.MemoryUtil.*;
 
 public class Main3D {
 
-	// The window handle
 	private long window;
 	
-	float angTankViewX = 0;
-	float angTankViewY = 0;
-	
-	float angTowerViewY = 0;
-	
-	float angCanonViewZ = 0;
+	float angleX = -70;
+	float angleY = 0;
+	float angleZ = -35;
+	float zoom = 0.034f;
 	
 	public Random rnd = new Random();
 
@@ -65,37 +62,37 @@ public class Main3D {
 				glfwSetWindowShouldClose(window, true); // We will detect this in the rendering loop
 		
 			if ( key == GLFW_KEY_W) {
-				angTankViewX+=5;
+				angleX+=5;
 			}
 			if ( key == GLFW_KEY_S) {
-				angTankViewX-=5;
+				angleX-=5;
+			}
+			if ( key == GLFW_KEY_R) {
+				angleY+=5;
+			}
+			if ( key == GLFW_KEY_F) {
+				angleY-=5;
+			}
+			
+			if ( key == GLFW_KEY_D) {
+				angleZ+=5;
 			}
 			if ( key == GLFW_KEY_A) {
-				angTankViewY+=5;
+				angleZ-=5;
 			}
-			if ( key == GLFW_KEY_D) {
-				angTankViewY-=5;
+			if ( key == GLFW_KEY_Z) {
+				zoom+=0.001;
 			}
-			
-			if ( key == GLFW_KEY_N) {
-				angTowerViewY+=5;
+			if ( key == GLFW_KEY_X) {
+				zoom-=0.001;
 			}
-			if ( key == GLFW_KEY_M) {
-				angTowerViewY-=5;
-			}
-			
-			if ( key == GLFW_KEY_G) {
-				angCanonViewZ+=5;
-			}
-			if ( key == GLFW_KEY_B) {
-				angCanonViewZ-=5;
-			}
+
 		
 		});
 
 		try (MemoryStack stack = stackPush()) {
-			IntBuffer pWidth = stack.mallocInt(1); // int*
-			IntBuffer pHeight = stack.mallocInt(1); // int*
+			IntBuffer pWidth = stack.mallocInt(1);
+			IntBuffer pHeight = stack.mallocInt(1);
 
 			glfwGetWindowSize(window, pWidth, pHeight);
 
@@ -113,7 +110,7 @@ public class Main3D {
 	private void loop() {
 		GL.createCapabilities();
 
-		BufferedImage imggato = TextureLoader.loadImage("texturaCamoCat.jpg");
+		BufferedImage imggato = TextureLoader.loadImage("vegssj.png");
 		BufferedImage gatorgba = new BufferedImage(imggato.getWidth(), imggato.getHeight(), BufferedImage.TYPE_INT_ARGB);
 		gatorgba.getGraphics().drawImage(imggato, 0, 0, null);
 		int tgato = TextureLoader.loadTexture(imggato);
@@ -124,7 +121,7 @@ public class Main3D {
 		x35.loadMD2("tris2.md2");
 
 		int currentFrame = 0;
-		float frameTime = 0.2f; // Tempo entre frames (200 ms)
+		float frameTime = 0.2f;
 		float accumulator = 0f;
 		long lastTime = System.nanoTime();
 
@@ -143,7 +140,7 @@ public class Main3D {
 
 			float[] lightAmbient = { 0.1f, 0.1f, 0.1f, 0.5f };
 			float[] lightDiffuse = { 0.5f, 0.5f, 0.5f, 0.5f };
-			float[] lightPosition = { 0.0f, 0.0f, 0.0f, 1.0f };
+			float[] lightPosition = { 1.0f, 0.0f, 0.0f, 1.0f };
 			glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmbient);
 			glLightfv(GL_LIGHT0, GL_DIFFUSE, lightDiffuse);
 			glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
@@ -151,17 +148,18 @@ public class Main3D {
 			glEnable(GL_LIGHT0);
 			glEnable(GL_COLOR_MATERIAL);
 			glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
+			x35.updateAnimation();
 			glEnable(GL_DEPTH_TEST);
 			glEnable(GL_TEXTURE_2D);
 			glBindTexture(GL_TEXTURE_2D, tgato);
 
 			glPushMatrix();
 			glTranslatef(0, 0, -4);
-			glScalef(0.01f, 0.01f, 0.01f);
-			glRotatef(angTankViewX, 1.0f, 0.0f, 0.0f);
-			glRotatef(angTankViewY, 0.0f, 1.0f, 0.0f);
+			glScalef(zoom, zoom, zoom);
+			glRotatef(angleX, 1.0f, 0.0f, 0.0f);
+			glRotatef(angleY, 0.0f, 1.0f, 0.0f);
+			glRotatef(angleZ, 0.0f, 0.0f, 1.0f);
 
-			// ===== Interpolação entre frames =====
 			long currentTime = System.nanoTime();
 			float deltaTime = (currentTime - lastTime) / 1_000_000_000.0f;
 			lastTime = currentTime;
@@ -171,17 +169,16 @@ public class Main3D {
 			float alpha = accumulator / frameTime;
 			if (alpha > 1.0f) alpha = 1.0f;
 
-			x35.renderInterpolatedFrame(currentFrame, nextFrame, alpha);
+			x35.Interpolated(currentFrame, nextFrame, alpha);
 
 			if (accumulator >= frameTime) {
 				accumulator -= frameTime;
 				currentFrame = nextFrame;
 			}
-			// =====================================
 
 			glPopMatrix();
 
-			// Exemplo de desenho com textura
+			/*
 			glPushMatrix();
 			glTranslatef(0, 2, -4);
 			glColor3f(1f, 1f, 1f);
@@ -192,7 +189,7 @@ public class Main3D {
 			glTexCoord2f(0.0f, 0.0f); glVertex3f( 0.5f,  0.5f, -2.0f);
 			glEnd();
 			glPopMatrix();
-
+			*/
 			glfwSwapBuffers(window);
 			glfwPollEvents();
 		}
