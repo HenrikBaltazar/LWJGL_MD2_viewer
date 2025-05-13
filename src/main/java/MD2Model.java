@@ -164,7 +164,7 @@ public class MD2Model {
         }
     }
 
-    public void renderInterpolatedFrame() {
+    public void renderInterpolatedFrame(int currentFrame, int nextFrame, float alpha) {
         MD2Frame frame1 = frames[currentFrame];
         MD2Frame frame2 = frames[nextFrame];
 
